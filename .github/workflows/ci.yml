@@ -98,7 +98,8 @@ jobs:
         run: |
           for attempt in {1..20}; do
             if curl --fail --silent http://127.0.0.1:8000/api/health; then
-              test -f .ci-data/omnipool.db
+              docker exec omnipool-ci test -f /data/omnipool.db
+              test "$(docker exec omnipool-ci stat -c '%u' /data/omnipool.db)" = "10001"
               exit 0
             fi
             sleep 1
