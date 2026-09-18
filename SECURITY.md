@@ -2,39 +2,85 @@
 
 ## Trust boundaries
 
-The browser is untrusted. Wallet addresses, contribution amounts, concept IDs and idempotency keys are validated server-side.
+The browser, third-party APIs, social data, crypto APIs and AI output are untrusted.
 
-The backend may prepare a Solana graduation plan. It must not possess or use the user's private key.
+The backend may prepare a graduation plan. It must never possess or use a user's private key.
 
-## Current alpha
+## Secrets
 
-- secrets are environment variables and never committed;
-- request bodies have an explicit size cap;
-- API traffic has a bounded process-local token-bucket limiter;
-- response headers disable MIME sniffing and unnecessary browser permissions;
-- external requests use timeouts and bounded connection pools;
-- sensitive-event trend flags can block automated concept generation;
-- contribution retries are idempotent;
-- graduation is retry-safe.
+Secrets are environment variables only.
+
+They must never appear in:
+
+- frontend JavaScript;
+- localStorage;
+- API responses;
+- Git commits;
+- logs.
+
+The repository contains placeholders only.
+
+## AI safety boundary
+
+AI output cannot directly execute:
+
+- shell commands;
+- SQL;
+- Python;
+- filesystem actions;
+- blockchain transactions;
+- privileged administrative actions.
+
+Structured AI output is parsed and validated with Pydantic before use.
+
+The router logs metadata, not full prompts.
+
+## Free-provider policy
+
+Ollama is the primary provider.
+
+Groq and OpenRouter are optional.
+
+OpenRouter requests are hard-blocked unless the model is `openrouter/free` or an explicit `:free` slug. Core functionality does not require a hosted provider.
+
+## Request controls
+
+The service enforces:
+
+- request-body size limits;
+- bounded per-client rate limiting;
+- AI input limits;
+- AI output limits;
+- bounded AI concurrency;
+- queue timeout;
+- request timeout;
+- finite retry count.
+
+## Financial state
+
+SOL accounting is integer lamports.
+
+Contribution writes are transactional and idempotent.
+
+Graduation requests are retry-safe.
 
 ## Before real funds
 
-The current code is not an audited custody system. Before accepting real SOL:
+The current application is not an audited custody system.
 
-1. move campaign truth to PostgreSQL or the on-chain program as appropriate;
-2. deploy and independently audit the Solana escrow program;
+Before accepting real SOL:
+
+1. deploy and independently audit the Solana escrow program;
+2. require signed-wallet authentication for privileged actions;
 3. fuzz state transitions and arithmetic;
-4. add signed wallet authentication for privileged actions;
-5. make idempotency keys mandatory for monetary endpoints;
-6. add an append-only audit log;
-7. enforce distributed rate limits at the edge;
-8. add dependency and container scanning in CI;
-9. run load tests and failure-injection tests;
-10. document an incident and key-compromise procedure.
+4. make monetary idempotency mandatory at every public boundary;
+5. add an append-only audit trail;
+6. run load and failure-injection tests;
+7. define key-compromise and incident-response procedures.
 
 ## Solana invariants
 
-The intended V1 plan is:
+Intended V1:
 
 - creator genesis allocation: 0%;
 - platform genesis allocation: 0%;
@@ -44,4 +90,4 @@ The intended V1 plan is:
 - freeze authority after graduation: revoked;
 - server signs user wallet: false.
 
-These values should eventually be enforced on-chain, not merely trusted from API output.
+These should eventually be enforced on-chain rather than trusted from API output.

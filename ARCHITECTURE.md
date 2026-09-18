@@ -1,114 +1,169 @@
 # Architecture
 
-## Design goal
+## Principles
 
-OMNIPOOL should be cheap to run at small scale without painting itself into a corner at large scale. The design therefore keeps the single-node alpha deliberately simple while making the boundaries that change under scale explicit.
+OMNIPOOL uses deterministic algorithms for work that does not need a language model. AI is reserved for tasks where generation, extraction or reasoning adds value.
 
-## Current process
+The core must remain usable without internet access or hosted AI accounts.
 
-Browser
-  -> FastAPI
-     -> trend service
-     -> quantitative engine
-     -> concept generation
-     -> campaign state machine
-     -> SQLite
+## Request path
 
-External APIs are accessed through one shared HTTP connection pool. The quantitative engine uses pure Python data structures and has no dataframe dependency in request paths.
+    Browser
+      |
+      v
+    FastAPI
+      |
+      +-- quantitative trend engine
+      |
+      +-- product AI service
+      |      |
+      |      v
+      |    AI Router
+      |      |-- Ollama
+      |      |-- Groq (optional)
+      |      '-- OpenRouter free models (optional)
+      |
+      +-- Proof-of-Demand state machine
+      |
+      '-- SQLite
+
+Provider-specific code is isolated under `backend/ai/providers/`.
+
+Business logic imports application-level AI services, never provider classes.
+
+## AI routing
+
+The router enforces:
+
+- bounded input size;
+- bounded output tokens;
+- global AI concurrency;
+- queue timeout;
+- request timeout;
+- finite exponential retry;
+- provider failover;
+- cached provider health;
+- free-model policy.
+
+Task type affects local model selection:
+
+- classification -> fast model;
+- extraction -> fast model;
+- generation -> general model;
+- reasoning -> reasoning model;
+- coding -> coding model.
+
+Ollama dynamically discovers locally installed models. It tries the configured compatible local model and may fall back to another installed generation model. Embeddings are stricter: a missing embedding model fails explicitly instead of routing text through a generation-only model.
+
+## Structured outputs
+
+Structured application flows use Pydantic schemas.
+
+The sequence is:
+
+    generate JSON
+      -> parse
+      -> Pydantic validation
+      -> one bounded repair attempt
+      -> safe failure
+
+Malformed AI output never reaches campaign persistence as trusted structure.
+
+## Product fallback
+
+Provider failure must not make the whole product unavailable.
+
+For launch-concept generation:
+
+    AI router unavailable
+      -> deterministic concept generator
+      -> same validated application data shape
+
+The fallback is intentionally product-specific. The generic AI router itself does not fabricate model output when no provider exists.
 
 ## Data representation
 
-Money is integer lamports. Floating-point values are acceptable for non-financial scores, but not for balances, targets or accepted contributions.
+Money is integer lamports.
 
-Campaign state is relational because the important operations are transactional:
+Floating point is acceptable for non-financial scores, but not balances, accepted contributions, or funding targets.
 
-- read campaign;
-- cap a contribution to remaining capacity;
-- insert contribution;
-- update aggregate raised amount;
-- commit atomically.
+Campaign writes use transactions and unique idempotency keys.
 
-Idempotency keys are unique so an HTTP retry cannot double-count the same contribution.
+## Resource bounds
 
-Trend observations are ephemeral and bounded. The clustering algorithm is intentionally O(n*k), where n is capped observations and k is capped clusters. At the current caps this is cheaper and easier to reason about than adding a vector database. If the observation set becomes large enough that the bound is restrictive, the next step is approximate nearest-neighbor or locality-sensitive hashing, not an unbounded nested loop.
+Current default bounds include:
 
-The rate limiter uses a token bucket per client and an OrderedDict-style bounded client set. It stores constant state per client rather than a timestamp for every request.
+- 240 observations per scan;
+- 60 narrative clusters;
+- 100 trends returned/stored in hot lists;
+- 64 DEX cache items;
+- 2 concurrent AI generations;
+- 12,000 AI input characters;
+- 900 AI output tokens;
+- 2,000 rate-limit client buckets;
+- 64 KiB request bodies.
 
-## Consistency model
+The narrative clustering path remains intentionally bounded O(n*k). A vector database is not justified at the current scale.
 
-Campaign funding needs strong local consistency. SQLite uses BEGIN IMMEDIATE so only one writer updates funding state at a time.
+## Database
 
-Trend intelligence is eventually consistent. It is acceptable for a trend card to lag a source by seconds; it is not acceptable for a contribution to be counted twice.
+SQLite is appropriate for the single-replica alpha.
 
-Graduation is retry-safe. A campaign already marked live returns the same state rather than failing a repeated request.
+It is the operational source of truth for campaigns and contributions.
 
-## Scaling stages
+Do not run multiple API replicas against separate SQLite files.
 
-### Stage 0: alpha
+If real traffic requires horizontal API scaling, migrate durable campaign state to PostgreSQL first. A vector database is not required for that migration.
 
-- one FastAPI replica;
-- SQLite on persistent disk;
-- shared outbound HTTP pool;
-- process-local cache and rate limiter.
+## Scaling path
 
-Do not run multiple API replicas against independent SQLite files.
+### Stage 0
 
-### Stage 1: production beta
+- one FastAPI process;
+- SQLite;
+- bounded in-memory caches;
+- local Ollama or deterministic fallback.
 
-Move campaigns, concepts and audit data to managed PostgreSQL before horizontal scaling.
+### Stage 1
 
-Add Redis only for things that require cross-instance coordination:
+- PostgreSQL for durable multi-replica state;
+- edge/distributed rate limiting only if multiple API instances require it.
 
-- distributed rate limits;
-- short-lived market caches;
-- idempotency lookup acceleration if PostgreSQL becomes a bottleneck.
+### Stage 2
 
-Do not put durable campaign truth in Redis.
+If ingestion throughput justifies it, separate source ingestion from request serving with a durable queue or event log.
 
-### Stage 2: sustained ingestion
+Do not add Kafka, Redis, Kubernetes or a warehouse before measurements justify them.
 
-Separate ingestion workers from request-serving API instances.
+### Stage 3
 
-A practical topology is:
+For very large historical event volumes, move analytics to a columnar system while keeping transactional campaign state relational.
 
-source adapters
-  -> durable queue or event log
-  -> normalization workers
-  -> narrative clustering/scoring
-  -> PostgreSQL + analytical sink
+## Consistency
 
-Use NATS JetStream, Kafka or a managed equivalent only when replay, consumer groups and sustained throughput justify the operational cost. For modest traffic, PostgreSQL-backed jobs or a managed queue are simpler.
+Campaign funding needs strong transactional consistency.
 
-### Stage 3: analytical scale
+Trend intelligence is eventually consistent.
 
-If historical observations reach tens or hundreds of millions, keep operational campaign state in PostgreSQL and move time-series/analytical scans to a columnar system such as ClickHouse, BigQuery or a warehouse.
+A trend may be seconds stale. A contribution must never be counted twice.
 
-The online API should read compact materialized trend summaries rather than scanning raw history.
+## External I/O
 
-## Partitioning
+All outbound HTTP uses one shared `httpx.AsyncClient` with bounded connections and timeouts.
 
-Good partition keys are stable and high-cardinality:
+Provider SDKs are deliberately avoided because plain HTTP already covers the required APIs and keeps dependency/runtime cost lower.
 
-- campaign writes: campaign_id;
-- contribution lookup: campaign_id plus wallet;
-- observations: source plus time bucket;
-- analytical history: event time.
+## Observability
 
-Avoid partitioning by ticker. Tickers are not unique and can become hot keys.
+Observability is local and free:
 
-## Backpressure
+- Python logging;
+- request IDs;
+- route latency;
+- provider name;
+- model name;
+- approximate token counts;
+- fallback index;
+- failure categories.
 
-Every ingestion boundary needs a maximum queue depth or batch size. When downstream processing is behind, lower-value observations should be aggregated or delayed rather than allowing memory to grow without bound.
-
-External source timeouts are short. A failed source degrades its own contribution to the trend score; it does not block the whole radar.
-
-## SLO targets for the beta
-
-Excluding third-party latency:
-
-- p95 health/list API latency under 50 ms on a small VM;
-- p95 campaign write latency under 100 ms;
-- no unbounded process memory growth during repeated scans;
-- zero duplicate accepted contribution for a repeated idempotency key.
-
-These are engineering budgets, not marketing claims.
+Prompts and API keys are not logged.

@@ -2,26 +2,44 @@
 
 Resource efficiency is part of the product definition.
 
-## Current bounds
+## Bounds
 
-- observations per scan: MAX_OBSERVATIONS_PER_SCAN;
+- observations per scan: `MAX_OBSERVATIONS_PER_SCAN`;
 - clusters per scan: at most 60;
-- trend list: MAX_TRENDS, default 100;
-- DEX cache: MARKET_CACHE_SIZE, default 64;
-- rate-limit clients: MAX_RATE_LIMIT_CLIENTS, default 2000;
+- trend list: `MAX_TRENDS`;
+- DEX cache: `MARKET_CACHE_SIZE`;
+- AI concurrency: `AI_MAX_CONCURRENCY`;
+- AI input: `AI_MAX_INPUT_CHARS`;
+- AI output: `AI_MAX_OUTPUT_TOKENS`;
+- rate-limit clients: `MAX_RATE_LIMIT_CLIENTS`;
 - outbound HTTP connections: 8;
 - outbound keep-alive connections: 4;
-- request body: MAX_REQUEST_BYTES, default 64 KiB.
+- request body: `MAX_REQUEST_BYTES`.
+
+## AI memory policy
+
+The backend never loads model weights itself.
+
+Ollama owns the local model process. OMNIPOOL keeps only request/response payloads and small health metadata in memory.
+
+Do not load multiple local models proactively. Model selection is lazy.
+
+Ollama's configured `keep_alive` is short so unused model memory can be released by the inference server.
 
 ## Runtime rules
 
 - no Pandas in request paths;
-- no unbounded in-memory queue;
-- no full-history scan inside an API request;
+- no vector database unless measured product requirements justify it;
+- no unbounded queue;
+- no unbounded cache;
+- no full-history scan in a request;
 - no new HTTP client per request;
+- no blocking network call inside async AI paths;
 - no floating-point representation for financial state;
-- no browser framework runtime unless a measured product need justifies it;
-- no chart library for simple bars or counters.
+- no large frontend framework for the current UI;
+- no polling loop for provider health.
+
+Provider health is TTL-cached.
 
 ## Benchmark loop
 
@@ -30,8 +48,12 @@ Run:
     pytest
     python scripts/benchmark.py
 
-The benchmark is a regression signal, not a universal hardware claim. Compare the same workload on the same class of runner before and after a change.
+The benchmark is a regression signal, not a universal hardware claim.
 
-## When to optimize further
+Compare the same workload on comparable hardware before and after architectural changes.
 
-Profile before adding complexity. The current bounded O(n*k) clustering is appropriate for hundreds of observations. Replace it only when measurements show the cap is constraining product quality or CPU budget.
+## Optimization rule
+
+Profile before adding infrastructure.
+
+The bounded O(n*k) clustering algorithm is appropriate for hundreds of observations. Replace it only when measurements show the current cap is constraining CPU budget or product quality.

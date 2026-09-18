@@ -1,20 +1,44 @@
-# Engineering operating notes
+# Engineering operating contract
 
-Treat this repository like a small production system, not a demo generator.
+OMNIPOOL must remain fully usable without a paid AI API or paid data infrastructure.
 
 Before changing architecture:
 
-1. identify the invariant being protected;
+1. identify the invariant;
 2. identify the hot path;
-3. state the memory and concurrency impact;
-4. add or update a test;
-5. run lint, tests and the benchmark;
-6. keep the change reviewable.
+3. state memory and concurrency impact;
+4. prefer deterministic Python when AI is unnecessary;
+5. add or update tests;
+6. run lint, tests, benchmark and browser syntax checks.
 
-Do not introduce a service because it sounds scalable. Add PostgreSQL before multiple API replicas. Add Redis only for cross-instance ephemeral coordination. Add an event bus only when ingestion throughput, replay or consumer isolation requires it.
+## AI rules
 
-Financial values use lamports internally. Retryable writes need idempotency. User wallet signing stays in the browser/wallet boundary.
+Business logic talks to `backend.ai` services, not provider classes.
 
-The current clustering implementation is deliberately bounded and simple. If it is replaced, benchmark both CPU and recall/quality against the same observation corpus.
+Provider order is local-first.
 
-Avoid compressed one-line source files, generated archive blobs in CI, decorative abstractions and comments that only restate the code.
+Do not add OpenAI, Anthropic, Gemini or another paid API as a required path.
+
+OpenRouter must remain explicit-free-model-only.
+
+Do not auto-download large model weights.
+
+Do not log prompts or secret values.
+
+AI output is untrusted data.
+
+## Infrastructure rules
+
+Do not add Redis because caching exists.
+
+Do not add Kafka because events exist.
+
+Do not add a vector database because embeddings exist.
+
+Add infrastructure only when a measured requirement needs it.
+
+SQLite remains single-replica. Move durable state to PostgreSQL before horizontal API scaling.
+
+Financial values use lamports internally. Retryable writes need idempotency. User wallet signing stays outside the backend.
+
+Avoid compressed source files, generated archive blobs in CI, decorative abstractions and comments that only restate syntax.
