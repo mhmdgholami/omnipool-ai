@@ -7,6 +7,7 @@ from backend.ai.config import AISettings
 from backend.ai.exceptions import (
     AllProvidersUnavailable,
     ProviderRateLimited,
+    ProviderTransientError,
     ProviderUnavailable,
 )
 from backend.ai.router import AIRouter
@@ -135,3 +136,19 @@ def test_no_configured_provider_returns_controlled_error():
         asyncio.run(
             router.generate(GenerationRequest(prompt="hello"))
         )
+
+
+def test_server_error_falls_back_to_next_provider():
+    first = FakeProvider(
+        "first",
+        error=ProviderTransientError("server_error"),
+    )
+    second = FakeProvider("second", text="recovered")
+    router = AIRouter(settings(), [first, second])
+
+    result = asyncio.run(
+        router.generate(GenerationRequest(prompt="hello"))
+    )
+
+    assert result.provider == "second"
+    assert result.text == "recovered"
