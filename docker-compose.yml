@@ -7,8 +7,20 @@ services:
       APP_ENV: development
       DATABASE_PATH: /data/omnipool.db
       OLLAMA_BASE_URL: http://ollama:11434
-      AI_PRIMARY_PROVIDER: ollama
+      AI_PRIMARY_PROVIDER: ${AI_PRIMARY_PROVIDER:-ollama}
       AI_ALLOW_PAID_PROVIDERS: "false"
+      AI_ENABLE_OLLAMA: ${AI_ENABLE_OLLAMA:-true}
+      AI_ENABLE_GROQ: ${AI_ENABLE_GROQ:-true}
+      AI_ENABLE_OPENROUTER: ${AI_ENABLE_OPENROUTER:-true}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_MODEL: ${GROQ_MODEL:-openai/gpt-oss-20b}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-openrouter/free}
+      AI_FAST_MODEL: ${AI_FAST_MODEL:-qwen3:1.7b}
+      AI_GENERAL_MODEL: ${AI_GENERAL_MODEL:-qwen3:4b}
+      AI_REASONING_MODEL: ${AI_REASONING_MODEL:-qwen3:4b}
+      AI_CODING_MODEL: ${AI_CODING_MODEL:-qwen2.5-coder:3b}
+      AI_EMBEDDING_MODEL: ${AI_EMBEDDING_MODEL:-nomic-embed-text}
     volumes:
       - app_data:/data
     restart: unless-stopped
