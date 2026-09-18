@@ -146,3 +146,71 @@ def test_openrouter_unavailable_is_non_fatal(monkeypatch):
     health = asyncio.run(provider.health_check())
 
     assert health.available is False
+
+
+def test_ollama_health_is_ttl_cached(monkeypatch):
+    calls = 0
+
+    async def fake_request(method, url, **kwargs):
+        nonlocal calls
+        calls += 1
+        return {"models": [{"name": "qwen3:1.7b"}]}
+
+    monkeypatch.setattr(
+        external_http,
+        "request_json",
+        fake_request,
+    )
+    provider = OllamaProvider(
+        AISettings(
+            enable_ollama=True,
+            health_ttl_seconds=30,
+        )
+    )
+
+    first = asyncio.run(provider.health_check())
+    second = asyncio.run(provider.health_check())
+
+    assert first.available is True
+    assert second.available is True
+    assert calls == 1
+
+
+def test_ollama_generation_falls_back_when_configured_model_is_gone(
+    monkeypatch,
+):
+    async def fake_request(method, url, **kwargs):
+        if url.endswith("/api/tags"):
+            return {
+                "models": [
+                    {"name": "available-model:3b"},
+                ]
+            }
+        if url.endswith("/api/chat"):
+            assert kwargs["json_body"]["model"] == "available-model:3b"
+            return {"message": {"content": "fallback model response"}}
+        raise AssertionError(url)
+
+    monkeypatch.setattr(
+        external_http,
+        "request_json",
+        fake_request,
+    )
+    provider = OllamaProvider(
+        AISettings(
+            enable_ollama=True,
+            general_model="removed-model:4b",
+        )
+    )
+
+    result = asyncio.run(
+        provider.generate(
+            GenerationRequest(
+                prompt="hello",
+                task="generation",
+            )
+        )
+    )
+
+    assert result.model == "available-model:3b"
+    assert result.text == "fallback model response"
