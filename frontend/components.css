@@ -1,0 +1,26 @@
+.fieldLabel {
+  display: block;
+  margin: 0 0 7px;
+  color: var(--muted);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.fieldInput {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #303a31;
+  border-radius: 10px;
+  outline: none;
+  background: #090c0a;
+  color: var(--text);
+}
+
+.fieldInput:focus {
+  border-color: #5d692d;
+}
+
+.tag + .tag {
+  margin-left: 4px;
+}
