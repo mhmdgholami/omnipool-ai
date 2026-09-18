@@ -49,3 +49,36 @@ jobs:
 
       - name: Test browser request cancellation
         run: node --test tests/frontend_api.test.mjs
+
+
+  container-smoke:
+    needs: test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate Compose
+        run: docker compose config
+
+      - name: Build production image
+        run: docker build -t omnipool-ai:ci .
+
+      - name: Start container
+        run: |
+          docker run -d             --name omnipool-ci             -p 8000:8000             -e SCAN_ON_STARTUP=false             -e AI_ENABLE_OLLAMA=false             -e AI_ENABLE_GROQ=false             -e AI_ENABLE_OPENROUTER=false             omnipool-ai:ci
+
+      - name: Verify health endpoint
+        run: |
+          for attempt in {1..20}; do
+            if curl --fail --silent http://127.0.0.1:8000/api/health; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs omnipool-ci
+          exit 1
+
+      - name: Stop container
+        if: always()
+        run: docker rm -f omnipool-ci || true
