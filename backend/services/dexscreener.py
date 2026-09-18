@@ -33,7 +33,7 @@ class DexScreenerAdapter:
             )
 
             signals: list[dict] = []
-            for (kind, _), result in zip(endpoints, results):
+            for (kind, _), result in zip(endpoints, results, strict=True):
                 if isinstance(result, Exception) or not isinstance(result, list):
                     continue
 

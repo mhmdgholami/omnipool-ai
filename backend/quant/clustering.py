@@ -1,7 +1,10 @@
 from __future__ import annotations
+
 from dataclasses import dataclass, field
+
 from backend.models import TrendObservation
-from backend.quant.text import tokens, jaccard, canonical_label
+from backend.quant.text import canonical_label, jaccard, tokens
+
 
 @dataclass(slots=True)
 class NarrativeCluster:
@@ -11,27 +14,86 @@ class NarrativeCluster:
 
     @property
     def sources(self) -> set[str]:
-        return {x.source for x in self.observations}
+        return {observation.source for observation in self.observations}
 
     @property
     def engagement(self) -> float:
-        return sum(x.engagement for x in self.observations)
+        return sum(
+            observation.engagement
+            for observation in self.observations
+        )
 
-def cluster_observations(observations: list[TrendObservation], threshold: float = 0.34, max_clusters: int = 60, max_observations: int = 240) -> list[NarrativeCluster]:
+
+def _best_cluster(
+    observation_tokens: frozenset[str],
+    clusters: list[NarrativeCluster],
+) -> tuple[int, float]:
+    best_index = -1
+    best_similarity = 0.0
+
+    for index, cluster in enumerate(clusters):
+        similarity = jaccard(observation_tokens, cluster.token_set)
+        if similarity > best_similarity:
+            best_index = index
+            best_similarity = similarity
+
+    return best_index, best_similarity
+
+
+def cluster_observations(
+    observations: list[TrendObservation],
+    threshold: float = 0.34,
+    max_clusters: int = 60,
+    max_observations: int = 240,
+) -> list[NarrativeCluster]:
     clusters: list[NarrativeCluster] = []
-    ordered = sorted(observations[:max_observations], key=lambda x: (x.engagement, x.created_at), reverse=True)
-    for obs in ordered:
-        obs_tokens=tokens(obs.title+" "+obs.text)
-        if not obs_tokens: continue
-        best_i=-1; best=0.0
-        for i,c in enumerate(clusters):
-            sim=jaccard(obs_tokens,c.token_set)
-            if sim > best: best_i=i; best=sim
-        if best_i >= 0 and best >= threshold:
-            c=clusters[best_i]; c.observations.append(obs)
-            merged=set(c.token_set); merged.update(obs_tokens)
-            c.token_set=frozenset(list(merged)[:40])
-        elif len(clusters) < max_clusters:
-            clusters.append(NarrativeCluster(canonical_label(obs.title,obs.text),obs_tokens,[obs]))
-    clusters.sort(key=lambda c:(len(c.sources),len(c.observations),c.engagement),reverse=True)
+    ordered = sorted(
+        observations[:max_observations],
+        key=lambda observation: (
+            observation.engagement,
+            observation.created_at,
+        ),
+        reverse=True,
+    )
+
+    for observation in ordered:
+        observation_tokens = tokens(
+            f"{observation.title} {observation.text}"
+        )
+        if not observation_tokens:
+            continue
+
+        best_index, best_similarity = _best_cluster(
+            observation_tokens,
+            clusters,
+        )
+
+        if best_index >= 0 and best_similarity >= threshold:
+            cluster = clusters[best_index]
+            cluster.observations.append(observation)
+            merged = set(cluster.token_set)
+            merged.update(observation_tokens)
+            cluster.token_set = frozenset(sorted(merged)[:40])
+            continue
+
+        if len(clusters) < max_clusters:
+            clusters.append(
+                NarrativeCluster(
+                    label=canonical_label(
+                        observation.title,
+                        observation.text,
+                    ),
+                    token_set=observation_tokens,
+                    observations=[observation],
+                )
+            )
+
+    clusters.sort(
+        key=lambda cluster: (
+            len(cluster.sources),
+            len(cluster.observations),
+            cluster.engagement,
+        ),
+        reverse=True,
+    )
     return clusters
