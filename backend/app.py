@@ -12,6 +12,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+from backend.ai import ai_router
 from backend.config import settings
 from backend.db import db
 from backend.middleware import BoundedTokenBucket
@@ -43,10 +44,11 @@ def _rss_megabytes() -> float:
 async def lifespan(_: FastAPI):
     db.init()
     await external_http.start()
-    try:
-        await scan_trends()
-    except Exception:
-        logger.warning("Initial trend scan failed", exc_info=True)
+    if settings.scan_on_startup:
+        try:
+            await scan_trends()
+        except Exception:
+            logger.warning("Initial trend scan failed", exc_info=True)
 
     try:
         yield
@@ -138,6 +140,13 @@ def trends(limit: int = 30) -> list[dict]:
 @app.get("/api/v1/sources")
 def sources() -> list[dict]:
     return source_status()
+
+
+@app.get("/api/ai/status")
+@app.get("/api/v1/ai/status")
+async def ai_status() -> list[dict]:
+    health = await ai_router.health()
+    return [item.model_dump() for item in health]
 
 
 @app.post("/api/trends/scan")

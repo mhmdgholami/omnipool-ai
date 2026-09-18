@@ -73,6 +73,7 @@ class Settings:
     max_rate_limit_clients: int = _int("MAX_RATE_LIMIT_CLIENTS", 2_000)
 
     enable_demo_seeds: bool = _bool("ENABLE_DEMO_SEEDS", True)
+    scan_on_startup: bool = _bool("SCAN_ON_STARTUP", True)
 
 
 settings = Settings()

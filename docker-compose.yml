@@ -1,0 +1,27 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      APP_ENV: development
+      DATABASE_PATH: /data/omnipool.db
+      OLLAMA_BASE_URL: http://ollama:11434
+      AI_PRIMARY_PROVIDER: ollama
+      AI_ALLOW_PAID_PROVIDERS: "false"
+    volumes:
+      - app_data:/data
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama:latest
+    profiles: ["local-ai"]
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+    restart: unless-stopped
+
+volumes:
+  app_data:
+  ollama_models:

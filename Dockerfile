@@ -1,18 +1,28 @@
+FROM python:3.12-slim AS builder
+
+ENV PIP_NO_CACHE_DIR=1
+WORKDIR /build
+
+RUN python -m venv /venv
+ENV PATH="/venv/bin:$PATH"
+
+COPY pyproject.toml README.md ./
+COPY backend ./backend
+RUN pip install .
+
 FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1
+    PATH="/venv/bin:$PATH"
 
 WORKDIR /app
 
 RUN useradd --create-home --uid 10001 appuser
 
-COPY pyproject.toml README.md ./
+COPY --from=builder /venv /venv
 COPY backend ./backend
 COPY frontend ./frontend
-
-RUN python -m pip install .
 
 RUN mkdir -p /data && chown -R appuser:appuser /data /app
 

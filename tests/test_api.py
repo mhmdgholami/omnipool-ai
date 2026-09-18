@@ -1,6 +1,10 @@
 import os
 
 os.environ["DATABASE_PATH"] = "./test_api.db"
+os.environ["SCAN_ON_STARTUP"] = "false"
+os.environ["AI_ENABLE_OLLAMA"] = "false"
+os.environ["AI_ENABLE_GROQ"] = "false"
+os.environ["AI_ENABLE_OPENROUTER"] = "false"
 
 from fastapi.testclient import TestClient
 

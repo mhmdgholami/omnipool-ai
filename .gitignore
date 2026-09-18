@@ -2,6 +2,12 @@
 .venv/
 __pycache__/
 .pytest_cache/
+.ruff_cache/
 *.pyc
 *.db
+*.sqlite
+*.sqlite3
+*.log
+data/
+models/
 .DS_Store
