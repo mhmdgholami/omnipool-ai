@@ -36,7 +36,7 @@ class ExternalHttpClient:
                 timeout=timeout,
                 limits=limits,
                 follow_redirects=True,
-                headers={"User-Agent": "omnipool-ai/0.3"},
+                headers={"User-Agent": "omnipool-ai/0.4"},
             )
 
     async def close(self) -> None:

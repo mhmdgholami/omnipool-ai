@@ -48,7 +48,7 @@ class Settings:
     reddit_client_secret: str = os.getenv("REDDIT_CLIENT_SECRET", "")
     reddit_user_agent: str = os.getenv(
         "REDDIT_USER_AGENT",
-        "omnipool-ai/0.3",
+        "omnipool-ai/0.4",
     )
     news_rss_url: str = os.getenv(
         "NEWS_RSS_URL",

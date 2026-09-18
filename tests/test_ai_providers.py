@@ -111,3 +111,38 @@ def test_embedding_never_falls_back_to_non_embedding_model(monkeypatch):
         match="ollama_model_not_installed",
     ):
         asyncio.run(provider.embed(["hello"]))
+
+
+def test_groq_unavailable_is_non_fatal(monkeypatch):
+    async def fail(*args, **kwargs):
+        raise httpx.ConnectError("offline")
+
+    monkeypatch.setattr(external_http, "request_json", fail)
+    provider = GroqProvider(
+        AISettings(
+            enable_groq=True,
+            groq_api_key="test-key",
+        )
+    )
+
+    health = asyncio.run(provider.health_check())
+
+    assert health.available is False
+
+
+def test_openrouter_unavailable_is_non_fatal(monkeypatch):
+    async def fail(*args, **kwargs):
+        raise httpx.ConnectError("offline")
+
+    monkeypatch.setattr(external_http, "request_json", fail)
+    provider = OpenRouterProvider(
+        AISettings(
+            enable_openrouter=True,
+            openrouter_api_key="test-key",
+            openrouter_model="openrouter/free",
+        )
+    )
+
+    health = asyncio.run(provider.health_check())
+
+    assert health.available is False
