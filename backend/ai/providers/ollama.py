@@ -199,7 +199,6 @@ class OllamaProvider(AIProvider):
             )
         except Exception as exc:
             translate_http_error(self.name, exc)
-            raise AssertionError("unreachable")
 
         embeddings = (
             payload.get("embeddings")
