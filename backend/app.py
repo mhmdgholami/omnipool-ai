@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 import resource
 import sys
@@ -42,7 +43,7 @@ def _rss_megabytes() -> float:
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    db.init()
+    await asyncio.to_thread(db.init)
     await external_http.start()
     if settings.scan_on_startup:
         try:
@@ -159,7 +160,11 @@ async def scan() -> list[dict]:
 @app.post("/api/v1/generate")
 async def generate(req: GenerateRequest) -> list[dict]:
     trend = (
-        db.row("SELECT * FROM trends WHERE id=?", (req.trend_id,))
+        await asyncio.to_thread(
+            db.row,
+            "SELECT * FROM trends WHERE id=?",
+            (req.trend_id,),
+        )
         if req.trend_id
         else None
     )

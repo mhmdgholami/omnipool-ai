@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import math
@@ -87,11 +88,17 @@ async def _collect_observations() -> list[TrendObservation]:
 def _cluster_to_trend(cluster, timestamp: float) -> dict:
     representative = max(
         cluster.observations,
-        key=lambda observation: (observation.engagement, observation.created_at),
+        key=lambda observation: (
+            observation.engagement,
+            observation.created_at,
+        ),
     )
     source_count = len(cluster.sources)
     evidence_count = len(cluster.observations)
-    latest = max(observation.created_at for observation in cluster.observations)
+    latest = max(
+        observation.created_at
+        for observation in cluster.observations
+    )
     age_minutes = max(0.0, (timestamp - latest) / 60.0)
 
     velocity = clamp(
@@ -112,7 +119,10 @@ def _cluster_to_trend(cluster, timestamp: float) -> dict:
     )
     saturation = clamp(8.0 + dex_evidence * 10.0)
     memeability = sum(
-        memeability_heuristic(observation.title, observation.text)
+        memeability_heuristic(
+            observation.title,
+            observation.text,
+        )
         for observation in cluster.observations
     ) / evidence_count
     freshness = freshness_score(age_minutes)
@@ -151,7 +161,11 @@ def _cluster_to_trend(cluster, timestamp: float) -> dict:
         "title": representative.title,
         "summary": representative.text,
         "source": ",".join(sorted(cluster.sources)),
-        "score": opportunity_score(base_score, confidence, launch_risk),
+        "score": opportunity_score(
+            base_score,
+            confidence,
+            launch_risk,
+        ),
         "confidence": confidence,
         "risk": launch_risk,
         "velocity": velocity,
@@ -165,15 +179,17 @@ def _cluster_to_trend(cluster, timestamp: float) -> dict:
         "source_count": source_count,
         "risk_flags": flags,
         "created_at": min(
-            observation.created_at for observation in cluster.observations
+            observation.created_at
+            for observation in cluster.observations
         ),
         "updated_at": timestamp,
     }
 
 
-async def scan_trends() -> list[dict]:
-    timestamp = time.time()
-    observations = await _collect_observations()
+def _score_and_persist(
+    observations: list[TrendObservation],
+    timestamp: float,
+) -> list[dict]:
     clusters = cluster_observations(
         observations,
         max_clusters=min(settings.max_trends, 60),
@@ -184,6 +200,20 @@ async def scan_trends() -> list[dict]:
         db.upsert_trend(_cluster_to_trend(cluster, timestamp))
 
     return list_trends(30)
+
+
+async def scan_trends() -> list[dict]:
+    timestamp = time.time()
+    observations = await _collect_observations()
+
+    # SQLite and clustering are bounded, but both are synchronous. Running
+    # them off-loop prevents disk latency or a full scan from stalling other
+    # async HTTP requests.
+    return await asyncio.to_thread(
+        _score_and_persist,
+        observations,
+        timestamp,
+    )
 
 
 def list_trends(limit: int = 30) -> list[dict]:

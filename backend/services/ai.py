@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 import time
@@ -173,7 +174,9 @@ async def generate_concepts(trend: dict) -> list[dict]:
     except AIError:
         concepts = _fallback(trend, degraded=True)
 
-    for concept in concepts:
-        db.insert_concept(concept)
+    def persist() -> None:
+        for concept in concepts:
+            db.insert_concept(concept)
 
+    await asyncio.to_thread(persist)
     return concepts
