@@ -32,9 +32,6 @@ class Settings:
     port: int = _int("PORT", 8000)
     database_path: str = os.getenv("DATABASE_PATH", "./omnipool.db")
 
-    openai_api_key: str = os.getenv("OPENAI_API_KEY", "")
-    openai_model: str = os.getenv("OPENAI_MODEL", "gpt-5.6-luna")
-
     dexscreener_base_url: str = os.getenv(
         "DEXSCREENER_BASE_URL",
         "https://api.dexscreener.com",
