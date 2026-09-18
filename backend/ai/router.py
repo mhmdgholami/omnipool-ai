@@ -107,9 +107,11 @@ class AIRouter:
                     )
                     continue
 
-                async def call() -> GenerationResult:
+                async def call(
+                    active_provider: AIProvider = provider,
+                ) -> GenerationResult:
                     return await asyncio.wait_for(
-                        provider.generate(request),
+                        active_provider.generate(request),
                         timeout=self.settings.timeout_seconds,
                     )
 

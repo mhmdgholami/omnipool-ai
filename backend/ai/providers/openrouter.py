@@ -30,8 +30,6 @@ class OpenRouterProvider(AIProvider):
             and self.settings.openrouter_api_key
         ):
             return False
-        if self.settings.allow_paid_providers:
-            return True
         return is_free_model(self.settings.openrouter_model)
 
     async def health_check(self) -> ProviderHealth:
@@ -90,10 +88,7 @@ class OpenRouterProvider(AIProvider):
     ) -> GenerationResult:
         model = request.model or self.settings.openrouter_model
 
-        if (
-            not self.settings.allow_paid_providers
-            and not is_free_model(model)
-        ):
+        if not is_free_model(model):
             raise ProviderUnavailable(
                 "openrouter_paid_model_blocked_by_policy"
             )

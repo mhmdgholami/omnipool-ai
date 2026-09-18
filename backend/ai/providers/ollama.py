@@ -144,7 +144,6 @@ class OllamaProvider(AIProvider):
             )
         except Exception as exc:
             translate_http_error(self.name, exc)
-            raise AssertionError("unreachable")
 
         text = (
             payload.get("message", {}).get("content")

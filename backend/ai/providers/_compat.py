@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import time
-from typing import Any
+from typing import Any, NoReturn
 
 import httpx
 
@@ -17,7 +17,7 @@ from backend.ai.utils.tokens import estimate_tokens
 from backend.services.http import external_http
 
 
-def translate_http_error(provider: str, exc: Exception) -> None:
+def translate_http_error(provider: str, exc: Exception) -> NoReturn:
     if isinstance(exc, httpx.TimeoutException):
         raise ProviderTimeout(f"{provider}_timeout") from exc
     if isinstance(exc, httpx.ConnectError):
@@ -77,7 +77,6 @@ async def chat_completion(
         )
     except Exception as exc:
         translate_http_error(provider, exc)
-        raise AssertionError("unreachable")
 
     try:
         text = payload["choices"][0]["message"]["content"]
