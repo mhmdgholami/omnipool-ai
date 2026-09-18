@@ -1,16 +1,37 @@
 # Performance contract
 
-Resource efficiency is a product requirement, not a later optimization.
+Resource efficiency is part of the product definition.
 
-- No Pandas/DataFrame allocation in request paths.
-- External calls are async with strict timeouts and small connection pools.
-- DEX cache is bounded to 40 rows and TTL-based.
-- API list endpoints are capped at 100 rows.
-- SQLite uses WAL and short-lived connections; no ORM identity map stays in RAM.
-- Frontend is vanilla JS/CSS: no React/Vue runtime and no charting library.
-- No continuous polling loop. Scans are explicit; production streams should be event-driven.
-- Campaign expiry is reconciled lazily; no permanent worker is required for V1.
-- AI output is capped to exactly three concepts with bounded field lengths.
-- Solana server code never stores/signs with user private keys.
+## Current bounds
 
-Run `pytest` and `python scripts/benchmark.py` before merging architectural changes.
+- observations per scan: MAX_OBSERVATIONS_PER_SCAN;
+- clusters per scan: at most 60;
+- trend list: MAX_TRENDS, default 100;
+- DEX cache: MARKET_CACHE_SIZE, default 64;
+- rate-limit clients: MAX_RATE_LIMIT_CLIENTS, default 2000;
+- outbound HTTP connections: 8;
+- outbound keep-alive connections: 4;
+- request body: MAX_REQUEST_BYTES, default 64 KiB.
+
+## Runtime rules
+
+- no Pandas in request paths;
+- no unbounded in-memory queue;
+- no full-history scan inside an API request;
+- no new HTTP client per request;
+- no floating-point representation for financial state;
+- no browser framework runtime unless a measured product need justifies it;
+- no chart library for simple bars or counters.
+
+## Benchmark loop
+
+Run:
+
+    pytest
+    python scripts/benchmark.py
+
+The benchmark is a regression signal, not a universal hardware claim. Compare the same workload on the same class of runner before and after a change.
+
+## When to optimize further
+
+Profile before adding complexity. The current bounded O(n*k) clustering is appropriate for hundreds of observations. Replace it only when measurements show the cap is constraining product quality or CPU budget.

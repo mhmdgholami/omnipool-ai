@@ -115,8 +115,6 @@ class Database:
                 ON campaigns(status, created_at DESC);
             CREATE INDEX IF NOT EXISTS idx_contributions_campaign
                 ON contributions(campaign_id, status);
-            CREATE UNIQUE INDEX IF NOT EXISTS idx_contributions_idempotency
-                ON contributions(idempotency_key);
             """
         )
 
@@ -375,7 +373,7 @@ class Database:
         campaign_id: str,
         wallet: str,
         amount_sol: Decimal,
-        idempotency_key: str | None,
+        idempotency_key: str | None = None,
     ) -> dict:
         amount_lamports = sol_to_lamports(amount_sol)
         key = idempotency_key or str(uuid4())

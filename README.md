@@ -1,38 +1,39 @@
 # OMNIPOOL AI
 
-Performance-first **Trend -> AI Idea -> Proof of Demand -> Human Approval -> Token** prototype.
+OMNIPOOL is a performance-first trend intelligence and Proof-of-Demand system for Solana-native launches.
 
-## Architecture
-- Backend: Python + FastAPI
-- Quant: pure Python scoring engine
-- Store: SQLite/WAL for the current single-instance MVP
-- Frontend: vanilla HTML/CSS/ES modules for minimum client RAM/CPU
-- Live market signal: DEX Screener Solana adapter
-- AI: server-side OpenAI Responses API adapter with deterministic fallback
-- Solana: devnet graduation-plan boundary; no server-side user signing
+The current alpha does four things:
 
-## Run
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -e .[dev]
-uvicorn backend.app:app --host 127.0.0.1 --port 8000
-```
-Open `http://127.0.0.1:8000`.
+1. collects bounded market observations;
+2. clusters them into narratives and scores opportunity, evidence confidence, saturation and launch risk;
+3. generates three launch concepts;
+4. lets a community test demand before a graduation plan is produced.
 
-## Test
-```bash
-pytest
-python scripts/benchmark.py
-```
+The server never signs a user's wallet.
 
-## What is real
-Python quantitative scoring, SQLite persistence, DEX ingestion, optional OpenAI generation, proof-of-demand state machine, refund/graduation API states and lightweight UI.
+## Run locally
 
-## Explicitly not real yet
-X/Reddit live streams, Phantom/Solflare signing, SPL deployment, on-chain escrow and liquidity creation. These are intentionally not faked.
+    python -m venv .venv
+    source .venv/bin/activate
+    pip install -e '.[dev]'
+    uvicorn backend.app:app --host 127.0.0.1 --port 8000
 
-## V1 economic invariant
-Creator genesis: 0%. Platform genesis: 0%. Contributor supply: 50%. Initial liquidity supply: 50%. Failed campaign: refund path.
+Open http://127.0.0.1:8000.
 
-Read `CODEX.md` and `PERFORMANCE.md` before architectural changes.
+## Checks
+
+    ruff check backend tests scripts
+    pytest
+    python scripts/benchmark.py
+
+## Engineering constraints
+
+- Financial state is stored in integer lamports, not floating point.
+- Contribution retries are idempotent.
+- External HTTP calls share one bounded connection pool.
+- Trend observations, clusters, caches, API lists and rate-limit clients are bounded.
+- SQLite is a single-replica alpha store. Horizontal scaling requires PostgreSQL first.
+- The browser has no framework runtime and no charting dependency.
+- No user private key is stored or signed by the backend.
+
+Read ARCHITECTURE.md, SECURITY.md and PERFORMANCE.md before changing core boundaries.

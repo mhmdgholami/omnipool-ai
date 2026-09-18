@@ -1,29 +1,20 @@
-# Codex operating contract
+# Engineering operating notes
 
-## Product
-OMNIPOOL AI: **Trend -> AI concept -> Proof of Demand -> human approval -> token graduation**.
+Treat this repository like a small production system, not a demo generator.
 
-## Non-negotiable engineering rules
-1. Python remains the backend language and owns quantitative logic.
-2. Optimize for low RAM, low CPU, low network chatter and predictable latency.
-3. Do not add a library unless its measured benefit outweighs runtime cost.
-4. Never add Pandas to the hot path. Use pure Python; targeted NumPy only after benchmark evidence.
-5. External I/O always needs timeouts, bounded concurrency and graceful fallback.
-6. Caches are bounded and TTL-based. Lists are bounded/paginated.
-7. Frontend changes must avoid unnecessary rerenders and large bundles.
-8. Human wallet signature is mandatory for irreversible Solana actions. AI may prepare, never secretly sign.
-9. Never present trend scores as guarantees of token performance.
-10. Every milestone loop is: implement -> tests -> benchmark/resource check -> error-path review -> continue.
+Before changing architecture:
 
-## Current gaps (do not fake them)
-- X and Reddit adapters are visible but not connected until credentials exist.
-- Solana graduation is a state + transaction-plan layer, not an on-chain program yet.
-- Wallet connection is a demo identity.
-- OpenAI uses deterministic local fallback until `OPENAI_API_KEY` is set.
+1. identify the invariant being protected;
+2. identify the hot path;
+3. state the memory and concurrency impact;
+4. add or update a test;
+5. run lint, tests and the benchmark;
+6. keep the change reviewable.
 
-## Next production milestones
-1. X filtered-stream/webhook adapter and Reddit adapter with bounded rolling windows.
-2. Narrative clustering/deduplication across sources.
-3. PostgreSQL only when multi-instance deployment makes SQLite insufficient.
-4. Solana devnet escrow program: funding target, expiry, permissionless refunds, contributor accounting, claims, authority revoke, liquidity graduation.
-5. Phantom/Solflare browser wallet adapter; private keys never touch backend.
+Do not introduce a service because it sounds scalable. Add PostgreSQL before multiple API replicas. Add Redis only for cross-instance ephemeral coordination. Add an event bus only when ingestion throughput, replay or consumer isolation requires it.
+
+Financial values use lamports internally. Retryable writes need idempotency. User wallet signing stays in the browser/wallet boundary.
+
+The current clustering implementation is deliberately bounded and simple. If it is replaced, benchmark both CPU and recall/quality against the same observation corpus.
+
+Avoid compressed one-line source files, generated archive blobs in CI, decorative abstractions and comments that only restate the code.

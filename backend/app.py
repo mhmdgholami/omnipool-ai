@@ -69,14 +69,22 @@ async def request_guardrails(request: Request, call_next):
     request_id = request.headers.get("x-request-id") or uuid4().hex
 
     content_length = request.headers.get("content-length")
-    if content_length and int(content_length) > settings.max_request_bytes:
-        return JSONResponse(
-            {"detail": "request_too_large", "request_id": request_id},
-            status_code=413,
-        )
+    if content_length:
+        try:
+            body_size = int(content_length)
+        except ValueError:
+            return JSONResponse(
+                {"detail": "invalid_content_length", "request_id": request_id},
+                status_code=400,
+            )
+        if body_size > settings.max_request_bytes:
+            return JSONResponse(
+                {"detail": "request_too_large", "request_id": request_id},
+                status_code=413,
+            )
 
     path = request.url.path
-    if not path.startswith("/static") and path not in {"/", "/api/health"}:
+    if not path.startswith("/static") and path not in {"/", "/api/health", "/api/v1/health"}:
         client_key = request.client.host if request.client else "unknown"
         if not rate_limiter.allow(client_key):
             return JSONResponse(
