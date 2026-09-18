@@ -1,9 +1,17 @@
 from __future__ import annotations
 
+from backend.ai.config import ai_settings
 from backend.config import settings
 
 
 def source_status() -> list[dict]:
+    hosted_configured = bool(
+        (ai_settings.enable_groq and ai_settings.groq_api_key)
+        or (
+            ai_settings.enable_openrouter
+            and ai_settings.openrouter_api_key
+        )
+    )
     return [
         {
             "id": "dexscreener",
@@ -13,11 +21,21 @@ def source_status() -> list[dict]:
             "detail": "Public Solana market signals",
         },
         {
-            "id": "openai",
-            "label": "OpenAI",
-            "mode": "live" if settings.openai_api_key else "fallback",
-            "configured": bool(settings.openai_api_key),
-            "detail": "Server-side concept generation",
+            "id": "ai",
+            "label": "AI engine",
+            "mode": "local-first",
+            "configured": True,
+            "detail": (
+                "Ollama first; optional free hosted failover; "
+                "deterministic fallback if no model is available"
+            ),
+        },
+        {
+            "id": "hosted-ai",
+            "label": "Hosted AI fallback",
+            "mode": "optional",
+            "configured": hosted_configured,
+            "detail": "Groq/OpenRouter credentials are optional",
         },
         {
             "id": "x",
@@ -31,11 +49,13 @@ def source_status() -> list[dict]:
             "label": "Reddit",
             "mode": (
                 "configured"
-                if settings.reddit_client_id and settings.reddit_client_secret
+                if settings.reddit_client_id
+                and settings.reddit_client_secret
                 else "adapter"
             ),
             "configured": bool(
-                settings.reddit_client_id and settings.reddit_client_secret
+                settings.reddit_client_id
+                and settings.reddit_client_secret
             ),
             "detail": "Credential slot reserved for a Developer API adapter",
         },
@@ -44,6 +64,9 @@ def source_status() -> list[dict]:
             "label": "Solana",
             "mode": "devnet-plan",
             "configured": bool(settings.solana_rpc_url),
-            "detail": "Graduation planning only; the server never signs the user wallet",
+            "detail": (
+                "Graduation planning only; the server never signs "
+                "the user wallet"
+            ),
         },
     ]

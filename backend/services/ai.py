@@ -5,11 +5,12 @@ import re
 import time
 from uuid import uuid4
 
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field
 
-from backend.config import settings
+from backend.ai.exceptions import AIError
+from backend.ai.schemas import TaskKind
+from backend.ai.services.generation import generate_structured
 from backend.db import db
-from backend.services.http import external_http
 
 
 class ConceptDraft(BaseModel):
@@ -22,6 +23,13 @@ class ConceptDraft(BaseModel):
     momentum_score: float = Field(ge=0, le=100)
     saturation_score: float = Field(ge=0, le=100)
     risk_flags: list[str] = Field(default_factory=list, max_length=8)
+
+
+class ConceptBatch(BaseModel):
+    concepts: list[ConceptDraft] = Field(
+        min_length=3,
+        max_length=3,
+    )
 
 
 def _ticker(value: str) -> str:
@@ -43,7 +51,11 @@ def _trend_flags(trend: dict) -> list[str]:
     return []
 
 
-def _fallback(trend: dict, degraded: bool = False) -> list[dict]:
+def _fallback(
+    trend: dict,
+    *,
+    degraded: bool = False,
+) -> list[dict]:
     first_word = trend["title"].split()[0].title()
     names = (
         f"{first_word} Mode",
@@ -52,7 +64,10 @@ def _fallback(trend: dict, degraded: bool = False) -> list[dict]:
     )
     inherited_flags = _trend_flags(trend)
     if degraded:
-        inherited_flags = [*inherited_flags, "generation_degraded"][:8]
+        inherited_flags = [
+            *inherited_flags,
+            "deterministic_fallback",
+        ][:8]
 
     concepts: list[dict] = []
     for index, name in enumerate(names):
@@ -90,50 +105,19 @@ def _fallback(trend: dict, degraded: bool = False) -> list[dict]:
     return concepts
 
 
-def _extract_text(payload: dict) -> str:
-    parts: list[str] = []
-    for item in payload.get("output", []):
-        if not isinstance(item, dict):
-            continue
-        for content in item.get("content", []):
-            if (
-                isinstance(content, dict)
-                and content.get("type") == "output_text"
-                and content.get("text")
-            ):
-                parts.append(str(content["text"]))
-    return "".join(parts).strip()
-
-
-def _parse_drafts(raw: str) -> list[ConceptDraft]:
-    try:
-        payload = json.loads(raw)
-    except json.JSONDecodeError:
-        match = re.search(r"\[.*\]", raw, re.DOTALL)
-        if not match:
-            return []
-        payload = json.loads(match.group(0))
-
-    if isinstance(payload, dict):
-        payload = payload.get("concepts", [])
-    if not isinstance(payload, list):
-        return []
-
-    drafts: list[ConceptDraft] = []
-    for item in payload[:3]:
-        try:
-            drafts.append(ConceptDraft.model_validate(item))
-        except ValidationError:
-            return []
-    return drafts if len(drafts) == 3 else []
-
-
-def _materialize(trend: dict, drafts: list[ConceptDraft]) -> list[dict]:
+def _materialize(
+    trend: dict,
+    batch: ConceptBatch,
+) -> list[dict]:
     inherited_flags = _trend_flags(trend)
     concepts: list[dict] = []
 
-    for draft in drafts:
-        flags = list(dict.fromkeys([*inherited_flags, *draft.risk_flags]))[:8]
+    for draft in batch.concepts:
+        flags = list(
+            dict.fromkeys(
+                [*inherited_flags, *draft.risk_flags]
+            )
+        )[:8]
         concepts.append(
             {
                 "id": str(uuid4()),
@@ -155,47 +139,39 @@ def _materialize(trend: dict, drafts: list[ConceptDraft]) -> list[dict]:
 
 async def generate_concepts(trend: dict) -> list[dict]:
     flags = _trend_flags(trend)
-    if "sensitive_event" in flags or float(trend.get("risk", 0.0)) >= 80.0:
+    if (
+        "sensitive_event" in flags
+        or float(trend.get("risk", 0.0)) >= 80.0
+    ):
         raise ValueError("trend_requires_manual_review")
 
-    if not settings.openai_api_key:
-        concepts = _fallback(trend)
-    else:
-        prompt = (
-            "Return JSON containing exactly three distinct launch concepts. "
-            "Each concept needs name, ticker, thesis, visual_prompt, target_sol, "
-            "novelty_score, momentum_score, saturation_score, and risk_flags. "
-            "Do not promise returns. Do not impersonate a real person, company, "
-            "or official organization. Keep tickers alphanumeric and short.\n\n"
-            f"Trend: {trend['title']}\n"
-            f"Context: {trend['summary']}\n"
-            f"Opportunity: {trend.get('score', 75)}\n"
-            f"Confidence: {trend.get('confidence', 50)}\n"
-            f"Launch risk: {trend.get('risk', 20)}\n"
-            f"Saturation: {trend.get('saturation', 15)}"
+    prompt = (
+        "Create exactly three genuinely different launch concepts for "
+        "the trend below. Return a JSON object with a concepts array. "
+        "Each concept must contain name, ticker, thesis, visual_prompt, "
+        "target_sol, novelty_score, momentum_score, saturation_score "
+        "and risk_flags. Do not promise returns. Do not impersonate "
+        "a real person, company or official organization. Keep ticker "
+        "alphanumeric and at most 8 characters. target_sol must be 5-250.\n\n"
+        f"Trend: {trend['title']}\n"
+        f"Context: {trend['summary']}\n"
+        f"Opportunity: {trend.get('score', 75)}\n"
+        f"Confidence: {trend.get('confidence', 50)}\n"
+        f"Launch risk: {trend.get('risk', 20)}\n"
+        f"Saturation: {trend.get('saturation', 15)}"
+    )
+
+    try:
+        batch = await generate_structured(
+            prompt,
+            ConceptBatch,
+            task=TaskKind.GENERATION,
+            max_tokens=850,
+            temperature=0.5,
         )
-        try:
-            payload = await external_http.request_json(
-                "POST",
-                "https://api.openai.com/v1/responses",
-                headers={
-                    "Authorization": f"Bearer {settings.openai_api_key}",
-                    "Content-Type": "application/json",
-                },
-                json_body={
-                    "model": settings.openai_model,
-                    "input": prompt,
-                },
-                timeout_seconds=18.0,
-            )
-            drafts = _parse_drafts(_extract_text(payload))
-            concepts = (
-                _materialize(trend, drafts)
-                if drafts
-                else _fallback(trend, degraded=True)
-            )
-        except Exception:
-            concepts = _fallback(trend, degraded=True)
+        concepts = _materialize(trend, batch)
+    except AIError:
+        concepts = _fallback(trend, degraded=True)
 
     for concept in concepts:
         db.insert_concept(concept)
