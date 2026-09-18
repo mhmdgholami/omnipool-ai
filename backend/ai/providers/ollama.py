@@ -90,6 +90,8 @@ class OllamaProvider(AIProvider):
     def _select_model(
         preferred: str,
         installed: list[str],
+        *,
+        allow_any: bool = True,
     ) -> str:
         if preferred in installed:
             return preferred
@@ -99,8 +101,12 @@ class OllamaProvider(AIProvider):
             if model.split(":", 1)[0] == preferred_base:
                 return model
 
-        if installed:
+        if installed and allow_any:
             return installed[0]
+        if installed:
+            raise ProviderUnavailable(
+                f"ollama_model_not_installed:{preferred}"
+            )
         raise ProviderUnavailable("ollama_no_models_installed")
 
     async def generate(
@@ -182,6 +188,7 @@ class OllamaProvider(AIProvider):
         model = self._select_model(
             self.settings.embedding_model,
             health.models,
+            allow_any=False,
         )
         try:
             payload = await external_http.request_json(
