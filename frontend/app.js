@@ -7,6 +7,7 @@ const toastElement = document.querySelector("#toast");
 const state = {
   view: "radar",
   wallet: localStorage.getItem("omni_wallet") || "",
+  generationController: null,
 };
 
 function escapeHtml(value) {
@@ -262,13 +263,31 @@ function conceptCard(concept) {
 }
 
 async function generateConcepts(payload) {
-  showToast("Generating concepts…");
+  state.generationController?.abort();
+  const controller = new AbortController();
+  state.generationController = controller;
+
+  openModal(
+    [
+      '<div class="sectionHead">',
+      '<div><div class="eyebrow">Concept engine</div><h2>Generating concepts…</h2></div>',
+      '<button class="btn" id="cancel-generation">Cancel</button>',
+      "</div>",
+      '<p class="muted">Analyzing the trend with the best available free/local provider.</p>',
+    ].join(""),
+    "560px",
+  );
+
+  document
+    .querySelector("#cancel-generation")
+    .addEventListener("click", () => controller.abort());
 
   try {
     const concepts = await request("/api/v1/generate", {
       method: "POST",
       body: payload,
-      timeoutMs: 20000,
+      timeoutMs: 22000,
+      signal: controller.signal,
     });
 
     openModal(
@@ -306,13 +325,28 @@ async function generateConcepts(payload) {
       });
     });
   } catch (error) {
+    if (error.name === "AbortError") {
+      closeModal();
+      showToast("Generation cancelled.");
+      return;
+    }
+
     openModal(
       [
         '<div class="sectionHead"><h2>Generation failed</h2>',
         '<button class="btn" data-close-modal>Close</button></div>',
-        '<p class="muted">' + escapeHtml(error.message) + "</p>",
+        '<p class="muted">The generation request did not complete. You can retry without changing your idea.</p>',
+        '<div class="actions"><button class="btn primary" id="retry-generation">Retry</button></div>',
       ].join(""),
+      "560px",
     );
+    document
+      .querySelector("#retry-generation")
+      .addEventListener("click", () => generateConcepts(payload));
+  } finally {
+    if (state.generationController === controller) {
+      state.generationController = null;
+    }
   }
 }
 
