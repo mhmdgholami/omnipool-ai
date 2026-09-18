@@ -14,7 +14,8 @@ Resource efficiency is part of the product definition.
 - rate-limit clients: `MAX_RATE_LIMIT_CLIENTS`;
 - outbound HTTP connections: 8;
 - outbound keep-alive connections: 4;
-- request body: `MAX_REQUEST_BYTES`.
+- request body: `MAX_REQUEST_BYTES`;
+- external JSON response: `MAX_EXTERNAL_RESPONSE_BYTES`.
 
 ## AI memory policy
 
@@ -39,7 +40,7 @@ Ollama's configured `keep_alive` is short so unused model memory can be released
 - no large frontend framework for the current UI;
 - no polling loop for provider health.
 
-Provider health is TTL-cached.
+Provider health is TTL-cached and uses a short dedicated timeout so an offline provider does not stall normal fallback.
 
 ## Benchmark loop
 

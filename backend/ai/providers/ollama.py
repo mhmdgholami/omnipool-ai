@@ -35,6 +35,7 @@ class OllamaProvider(AIProvider):
         payload = await external_http.request_json(
             "GET",
             f"{self.settings.ollama_base_url}/api/tags",
+            timeout_seconds=self.settings.health_timeout_seconds,
         )
         models = payload.get("models", [])
         return [

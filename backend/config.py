@@ -66,6 +66,10 @@ class Settings:
 
     request_timeout_seconds: float = _float("REQUEST_TIMEOUT_SECONDS", 8.0)
     max_request_bytes: int = _int("MAX_REQUEST_BYTES", 65_536)
+    max_external_response_bytes: int = _int(
+        "MAX_EXTERNAL_RESPONSE_BYTES",
+        2_000_000,
+    )
     rate_limit_per_minute: int = _int("RATE_LIMIT_PER_MINUTE", 120)
     max_rate_limit_clients: int = _int("MAX_RATE_LIMIT_CLIENTS", 2_000)
 

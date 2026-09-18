@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from typing import Any
 
 import httpx
@@ -8,8 +9,12 @@ import httpx
 from backend.config import settings
 
 
+class ExternalResponseTooLarge(RuntimeError):
+    pass
+
+
 class ExternalHttpClient:
-    """Shared connection pool for outbound APIs."""
+    """Shared connection pool for bounded outbound JSON requests."""
 
     def __init__(self) -> None:
         self._client: httpx.AsyncClient | None = None
@@ -25,7 +30,10 @@ class ExternalHttpClient:
 
             timeout = httpx.Timeout(
                 settings.request_timeout_seconds,
-                connect=min(4.0, settings.request_timeout_seconds),
+                connect=min(
+                    4.0,
+                    settings.request_timeout_seconds,
+                ),
             )
             limits = httpx.Limits(
                 max_connections=8,
@@ -52,20 +60,59 @@ class ExternalHttpClient:
         headers: dict[str, str] | None = None,
         json_body: dict[str, Any] | None = None,
         timeout_seconds: float | None = None,
+        max_response_bytes: int | None = None,
     ) -> Any:
         await self.start()
         if self._client is None:
             raise RuntimeError("http_client_not_started")
 
-        response = await self._client.request(
+        byte_limit = (
+            max_response_bytes
+            if max_response_bytes is not None
+            else settings.max_external_response_bytes
+        )
+        if byte_limit <= 0:
+            raise ValueError("max_response_bytes_must_be_positive")
+
+        async with self._client.stream(
             method,
             url,
             headers=headers,
             json=json_body,
-            timeout=timeout_seconds or settings.request_timeout_seconds,
-        )
-        response.raise_for_status()
-        return response.json()
+            timeout=(
+                timeout_seconds
+                or settings.request_timeout_seconds
+            ),
+        ) as response:
+            response.raise_for_status()
+
+            declared_length = response.headers.get(
+                "content-length"
+            )
+            if declared_length:
+                try:
+                    declared_size = int(declared_length)
+                except ValueError:
+                    declared_size = 0
+                if declared_size > byte_limit:
+                    raise ExternalResponseTooLarge(
+                        "external_response_too_large"
+                    )
+
+            payload = bytearray()
+            async for chunk in response.aiter_bytes():
+                if len(payload) + len(chunk) > byte_limit:
+                    raise ExternalResponseTooLarge(
+                        "external_response_too_large"
+                    )
+                payload.extend(chunk)
+
+        try:
+            return json.loads(payload)
+        except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+            raise ValueError(
+                "external_response_invalid_json"
+            ) from exc
 
 
 external_http = ExternalHttpClient()

@@ -49,6 +49,7 @@ class GroqProvider(AIProvider):
                         f"Bearer {self.settings.groq_api_key}"
                     )
                 },
+                timeout_seconds=self.settings.health_timeout_seconds,
             )
             models = [
                 str(item.get("id"))

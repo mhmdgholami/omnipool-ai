@@ -98,6 +98,12 @@ class AISettings:
     health_ttl_seconds: float = field(
         default_factory=lambda: _env_float("AI_HEALTH_TTL_SECONDS", 20.0)
     )
+    health_timeout_seconds: float = field(
+        default_factory=lambda: _env_float(
+            "AI_HEALTH_TIMEOUT_SECONDS",
+            1.5,
+        )
+    )
     max_retries: int = field(
         default_factory=lambda: max(0, min(2, _env_int("AI_MAX_RETRIES", 1)))
     )
