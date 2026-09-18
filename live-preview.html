@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OMNIPOOL AI — Live Preview</title>
+<style>
+:root{--bg:#080a09;--panel:#0e110f;--line:#232b24;--text:#f4f7ef;--muted:#8c968c;--lime:#dfff52;--green:#79e89b;--orange:#ffbd6f}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 82% 0,rgba(223,255,82,.06),transparent 28%),var(--bg);color:var(--text);font:14px Inter,system-ui,-apple-system,Segoe UI,sans-serif}
+header{position:sticky;top:0;z-index:10;height:64px;padding:0 max(18px,calc((100vw - 1380px)/2));display:flex;align-items:center;gap:18px;border-bottom:1px solid var(--line);background:rgba(8,10,9,.9);backdrop-filter:blur(14px)}
+.brand{font-weight:950;letter-spacing:-.04em;display:flex;align-items:center;gap:9px}.mark{width:22px;height:22px;border-radius:7px;background:var(--lime)}.pill{font-size:9px;padding:4px 7px;border:1px solid #455022;color:var(--lime);border-radius:99px}.spacer{flex:1}.status{font-size:10px;color:var(--green)}
+main{max-width:1380px;margin:auto;padding:24px}.hero{display:grid;grid-template-columns:1.35fr .65fr;gap:14px}.panel,.card{border:1px solid var(--line);background:linear-gradient(180deg,#0e110f,#0b0d0c);border-radius:19px}.hero .panel{padding:30px}.eyebrow{font-size:10px;text-transform:uppercase;letter-spacing:.16em;color:var(--lime);font-weight:900}
+h1{font-size:clamp(46px,6vw,82px);line-height:.9;letter-spacing:-.075em;margin:16px 0}h2{font-size:26px;letter-spacing:-.04em;margin:0 0 4px}h3{margin:0 0 7px}.lead{font-size:16px;color:#b9c1b7;line-height:1.55;max-width:800px}.btn{border:1px solid #334035;background:#111512;color:var(--text);padding:10px 13px;border-radius:11px;font-weight:850;cursor:pointer}.btn.primary{background:var(--lime);color:#080a09;border-color:var(--lime)}
+.steps{display:grid;gap:8px}.step{display:grid;grid-template-columns:28px 1fr;gap:8px;align-items:center;padding:10px;border:1px solid var(--line);border-radius:11px}.step b{color:var(--lime)}
+.section{margin-top:28px}.head{display:flex;align-items:end;justify-content:space-between;gap:12px;margin-bottom:12px}.muted{color:var(--muted)}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.card{padding:16px}.score{font-size:32px;font-weight:950;color:var(--lime)}.tag{display:inline-block;font-size:9px;border:1px solid #2f4334;color:var(--green);padding:4px 7px;border-radius:99px;margin-right:4px}.tag.warn{color:var(--orange);border-color:#5d472d}
+.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:13px 0}.metric{border:1px solid var(--line);padding:9px;border-radius:10px}.metric span{display:block;font-size:8px;color:var(--muted);text-transform:uppercase}.metric b{font-size:12px}.source{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}.source:last-child{border-bottom:0}.source span{color:var(--muted);font-size:11px}
+.footer{margin-top:36px;border-top:1px solid var(--line);padding:22px 0;color:#667066;font-size:10px}
+@media(max-width:900px){.hero,.grid{grid-template-columns:1fr}main{padding:16px}.hero .panel{padding:22px}}
+</style>
+</head>
+<body>
+<header><div class="brand"><span class="mark"></span>OMNIPOOL AI <span class="pill">LIVE PREVIEW</span></div><div class="spacer"></div><div id="status" class="status">● CONNECTING SIGNALS</div></header>
+<main>
+<section class="hero">
+<div class="panel"><div class="eyebrow">Trend intelligence → proof of demand</div><h1>FROM TREND → TOKEN.<br>IN SECONDS.</h1><p class="lead">OMNIPOOL detects emerging narratives, scores momentum and saturation, generates launch concepts, and makes the crowd prove demand before a token exists.</p><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:20px"><button id="scan" class="btn primary">Scan Solana market</button><button class="btn" onclick="document.querySelector('#radar').scrollIntoView({behavior:'smooth'})">Open AI Radar</button></div></div>
+<div class="panel"><div class="eyebrow">Execution model</div><div class="steps" style="margin-top:14px"><div class="step"><b>1</b><span>Detect narrative velocity</span></div><div class="step"><b>2</b><span>Generate + collision check</span></div><div class="step"><b>3</b><span>Refundable proof market</span></div><div class="step"><b>4</b><span>Human signs graduation</span></div></div><p class="muted" style="margin-top:18px">No creator genesis allocation. No automatic server-side wallet signing.</p></div>
+</section>
+
+<section class="section" id="radar"><div class="head"><div><h2>AI Radar</h2><div class="muted">Opportunity, confidence and launch risk are separated.</div></div><span class="pill" id="count">3 narratives</span></div><div class="grid" id="cards"></div></section>
+
+<section class="section"><div class="head"><div><h2>Source health</h2><div class="muted">Live sources are explicitly separated from fallback/demo adapters.</div></div></div><div class="panel" style="padding:16px"><div class="source"><div><b>DEX Screener</b><br><span>Public Solana market signal</span></div><span class="tag">LIVE</span></div><div class="source"><div><b>OpenAI concept engine</b><br><span>Production backend integration</span></div><span class="tag warn">BACKEND</span></div><div class="source"><div><b>X + Reddit</b><br><span>Credentialed source adapters in production backend</span></div><span class="tag warn">ADAPTER</span></div><div class="source"><div><b>Solana execution</b><br><span>Human-signed graduation boundary</span></div><span class="tag warn">DEVNET GATE</span></div></div></section>
+
+<div class="footer">OMNIPOOL AI · live frontend preview · speculative assets can lose all value · full Python backend deployment is separate from this static preview</div>
+</main>
+<script>
+const seeds=[
+{name:"Robot Boxing",summary:"Humanoid fighting clips moving from robotics circles into internet meme culture.",score:91,conf:82,risk:18,source:"CULTURE SIGNAL"},
+{name:"AI Pigeon",summary:"AI-agent pigeon jokes spreading through profiles and replies before a dominant token narrative forms.",score:85,conf:73,risk:24,source:"CROSS-SOURCE"},
+{name:"Tiny Mic Interviews",summary:"A recurring tiny-microphone interview format mutating into reusable reaction content.",score:81,conf:69,risk:19,source:"MEME FORMAT"}
+];
+const esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]));
+function render(rows){document.querySelector("#cards").innerHTML=rows.map(x=>`<article class="card"><div class="score">${Math.round(x.score)}</div><h3>${esc(x.name)}</h3><p class="muted">${esc(x.summary)}</p><span class="tag">${esc(x.source)}</span><div class="metrics"><div class="metric"><span>Opportunity</span><b>${Math.round(x.score)}</b></div><div class="metric"><span>Confidence</span><b>${Math.round(x.conf)}</b></div><div class="metric"><span>Launch risk</span><b>${Math.round(x.risk)}</b></div></div><button class="btn primary" onclick="alert('Production flow: generate 3 concepts → collision/risk checks → start Proof of Demand → human-approved graduation')">Generate launch</button></article>`).join("");document.querySelector("#count").textContent=rows.length+" narratives"}
+async function scan(){const st=document.querySelector("#status");st.textContent="● SCANNING SOLANA";try{const r=await fetch("https://api.dexscreener.com/token-boosts/top/v1");if(!r.ok)throw 0;const d=await r.json();const live=(Array.isArray(d)?d:[]).filter(x=>x.chainId==="solana").slice(0,6).map((x,i)=>({name:(x.description||"Solana boosted narrative").split(/\s+/).slice(0,6).join(" "),summary:x.description||"Current boosted Solana token signal.",score:Math.max(62,88-i*4),conf:64-i*2,risk:28+i*4,source:"DEX LIVE"}));render(live.length?live:seeds);st.textContent=live.length?"● LIVE SOLANA CONNECTED":"● FALLBACK MODE"}catch(e){render(seeds);st.textContent="● FALLBACK MODE"}}
+document.querySelector("#scan").onclick=scan;render(seeds);scan();
+</script></body></html>
