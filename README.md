@@ -45,7 +45,8 @@ Create the environment:
     python -m venv .venv
     source .venv/bin/activate
     python -m pip install -e '.[dev]'
-    cp .env.example .env
+    mkdir -p data
+    export DATABASE_PATH=./data/omnipool.db
 
 Start Ollama in another terminal:
 
@@ -118,10 +119,12 @@ Models are **not downloaded automatically**. Change any model with environment v
 
 ## Optional Groq setup
 
-Set:
+For local Python, export:
 
-    GROQ_API_KEY=...
-    AI_ENABLE_GROQ=true
+    export GROQ_API_KEY=...
+    export AI_ENABLE_GROQ=true
+
+For Docker Compose, place the same values in a local `.env` file; Compose forwards them to the app container.
 
 The default configured model is:
 
@@ -131,17 +134,19 @@ Groq is optional. If the key is absent, rate-limited, offline, or its model beco
 
 ## Optional OpenRouter setup
 
-Set:
+For local Python, export:
 
-    OPENROUTER_API_KEY=...
-    AI_ENABLE_OPENROUTER=true
-    OPENROUTER_MODEL=openrouter/free
+    export OPENROUTER_API_KEY=...
+    export AI_ENABLE_OPENROUTER=true
+    export OPENROUTER_MODEL=openrouter/free
+
+For Docker Compose, the same values may live in a local `.env` file.
 
 The code only permits `openrouter/free` or model slugs ending in `:free`.
 
 ## Environment variables
 
-Copy `.env.example` and edit only what you need.
+`.env.example` is the configuration reference. The Python application intentionally does not auto-parse dotenv files, which avoids another runtime dependency. For local Python runs, export only the variables you want to override. Docker Compose can read a local `.env` file for variable substitution.
 
 Important AI controls:
 
@@ -183,12 +188,13 @@ Run:
     pytest
     python scripts/benchmark.py
 
-Browser JavaScript syntax checks:
+Browser JavaScript checks:
 
     node --input-type=module --check < frontend/api.js
     node --input-type=module --check < frontend/app.js
+    node --test tests/frontend_api.test.mjs
 
-Tests cover provider fallback, rate-limit behavior, timeouts, malformed structured output, missing keys, Ollama unavailable, sequential provider failure, integer money and idempotent campaign writes.
+Tests cover provider fallback, HTTP 429/500 handling, timeouts, malformed structured output, missing keys, Ollama unavailable, configured-model removal, provider health caching, sequential provider failure, browser request cancellation, external-response size limits, integer money and idempotent campaign writes.
 
 ## Failure behavior
 
