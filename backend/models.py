@@ -35,7 +35,7 @@ class GenerateRequest(BaseModel):
     summary: str | None = Field(default=None, max_length=600)
 
     @model_validator(mode="after")
-    def validate_input(self) -> "GenerateRequest":
+    def validate_input(self) -> GenerateRequest:
         if not self.trend_id and not self.title:
             raise ValueError("trend_id_or_title_required")
         return self
