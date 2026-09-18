@@ -244,7 +244,7 @@ See `SECURITY.md`.
 
 ## Deployment
 
-The Docker image runs as a non-root user and exposes a health check.
+The container entrypoint may start with root only to repair ownership on a runtime-mounted database directory. It immediately drops to `appuser` (UID 10001) before Uvicorn starts, and the application process itself runs non-root. The image also exposes a health check.
 
 Railway is currently configured as an optional hosted deployment target. It is **not required** for the zero-cost core. Local execution remains the reference path.
 
@@ -290,7 +290,7 @@ For local Python use a writable path such as:
 
     DATABASE_PATH=./data/omnipool.db
 
-Docker and the current Railway service use `/data/omnipool.db`.
+Docker and the current Railway service use `/data/omnipool.db`. The container entrypoint repairs ownership for runtime-mounted `/data` volumes and then drops privileges before starting the API.
 
 ## Current limitations
 

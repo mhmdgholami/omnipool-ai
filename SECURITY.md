@@ -56,6 +56,19 @@ The service enforces:
 - request timeout;
 - finite retry count.
 
+## Container privilege boundary
+
+The container entrypoint starts with enough privilege to repair ownership on a runtime-mounted SQLite directory. Railway and similar platforms can replace image-time directory ownership when they attach a persistent volume.
+
+The entrypoint is deliberately narrow:
+
+- it only prepares database paths under `/data` or `/app`;
+- it changes ownership only for the database directory and SQLite sidecar files;
+- it drops supplementary groups, GID and UID to `appuser` (UID 10001);
+- it refuses to start Uvicorn if the process is still root.
+
+The FastAPI/Uvicorn application therefore runs non-root even when a platform mounts a root-owned data volume.
+
 ## Financial state
 
 SOL accounting is integer lamports.
